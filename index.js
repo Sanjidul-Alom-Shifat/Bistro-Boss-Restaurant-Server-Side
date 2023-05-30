@@ -1,7 +1,8 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-require('dotenv').config()
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -28,9 +29,45 @@ async function run() {
         await client.connect();
         // Send a ping to confirm a successful connection
 
+        const usersCollection = client.db("BistroDB").collection("users");
         const menuCollection = client.db("BistroDB").collection("menu");
         const reviewCollection = client.db("BistroDB").collection("reviews");
         const cartCollection = client.db("BistroDB").collection("carts");
+
+
+        // user related apis : for get users
+        app.get('/users', async (req, res) => {
+            const result = await usersCollection.find().toArray();
+            res.send(result);
+        })
+
+        // user related apis : for post user
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            console.log(user);
+            const query = { email: user.email };
+            const existingUser = await usersCollection.findOne(query);
+            if (existingUser) {
+                return res.send({ message: 'User already exists' });
+            }
+            const result = await usersCollection.insertOne(user);
+            res.send(result);
+        })
+
+        // for update : to make user admin
+        app.patch('/users/admin/:id', async (req, res) => {
+            const id = req.params.id;
+            console.log(id);
+            const query = { _id: new ObjectId(id) };
+            const updateUser = {
+                $set: {
+                    role: 'admin'
+                },
+            };
+            
+            const result = await usersCollection.updateOne(query, updateUser);
+            res.send(result);
+        })
 
         // get all menu 
         app.get('/menu', async (req, res) => {
@@ -71,7 +108,7 @@ async function run() {
             const query = { _id: new ObjectId(id) };
             const result = await cartCollection.deleteOne(query);
             res.send(result);
-          })
+        })
 
 
 
