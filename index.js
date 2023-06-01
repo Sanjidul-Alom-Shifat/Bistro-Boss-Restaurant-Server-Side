@@ -91,7 +91,7 @@ async function run() {
             res.send(result);
         })
 
-        // to ge 
+        // to get
         app.get('/users/admin/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
 
@@ -125,6 +125,21 @@ async function run() {
             const result = await menuCollection.find().toArray();
             res.send(result);
         })
+
+        // for post data in menu server
+        app.post('/menu', verifyJWT, verifyAdmin, async (req, res) => {
+            const newItem = req.body;
+            const result = await menuCollection.insertOne(newItem);
+            res.send(result);
+        })
+
+        // for delete specific menu of recipies
+        app.delete('/menu/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await menuCollection.deleteOne(query);
+            res.send(result);
+          })
 
         // get all reviews data
         app.get('/reviews', async (req, res) => {
