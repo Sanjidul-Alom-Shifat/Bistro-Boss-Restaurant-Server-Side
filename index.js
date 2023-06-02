@@ -3,6 +3,7 @@ const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -50,6 +51,7 @@ async function run() {
         const menuCollection = client.db("BistroDB").collection("menu");
         const reviewCollection = client.db("BistroDB").collection("reviews");
         const cartCollection = client.db("BistroDB").collection("carts");
+        const paymentCollection = client.db("BistroDB").collection("payments");
 
 
         // post for jwt 
@@ -139,7 +141,7 @@ async function run() {
             const query = { _id: new ObjectId(id) }
             const result = await menuCollection.deleteOne(query);
             res.send(result);
-          })
+        })
 
         // get all reviews data
         app.get('/reviews', async (req, res) => {
@@ -166,7 +168,7 @@ async function run() {
 
             const decodedEmail = req.decoded.email;
             if (email !== decodedEmail) {
-                return res.status(403).send({ error: true, message: 'porviden access' })
+                return res.status(403).send({ error: true, message: 'forbidden access' })
             }
 
             const query = { email: email };
@@ -180,6 +182,33 @@ async function run() {
             const query = { _id: new ObjectId(id) };
             const result = await cartCollection.deleteOne(query);
             res.send(result);
+        })
+
+        // create payment intended
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const { price } = req.body;
+            // console.log(price);
+            const amount = price * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            })
+        });
+
+        // payment related api
+        app.post('/payments', verifyJWT, async (req, res) => {
+            const payment = req.body;
+            const insertResult = await paymentCollection.insertOne(payment);
+
+            const query = { _id: { $in: payment.cartItems.map(id => new ObjectId(id)) } }
+            const deleteResult = await cartCollection.deleteMany(query)
+
+            res.send({ insertResult, deleteResult });
         })
 
 
